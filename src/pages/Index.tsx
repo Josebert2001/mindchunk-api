@@ -24,7 +24,7 @@ const Index = () => {
 
   const handleGetStarted = () => {
     if (user) {
-      navigate("/study");
+      navigate("/dashboard");
     } else {
       navigate("/auth");
     }
