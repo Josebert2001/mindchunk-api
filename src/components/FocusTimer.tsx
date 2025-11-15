@@ -13,7 +13,7 @@ interface FocusTimerProps {
 }
 
 export function FocusTimer({ compact = false, onTimerComplete }: FocusTimerProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes default
   const [focusDuration, setFocusDuration] = useState(5);
@@ -129,36 +129,40 @@ export function FocusTimer({ compact = false, onTimerComplete }: FocusTimerProps
   };
 
   // Compact floating widget
-  if (compact && !isOpen) {
+  if (compact && !isExpanded) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-20 right-4 z-40 bg-card border border-border rounded-full shadow-soft p-4 hover:shadow-glow transition-smooth"
+        onClick={() => setIsExpanded(true)}
+        className="fixed top-20 right-4 z-40 glass rounded-2xl p-4 shadow-brutal-sm border-4 border-foreground hover:translate-x-[-2px] hover:translate-y-[-2px] transition-brutal"
       >
-        <div className="relative w-12 h-12">
-          <svg className="transform -rotate-90 w-12 h-12">
+        <div className="relative w-16 h-16">
+          <svg className="transform -rotate-90 w-16 h-16">
             <circle
-              cx="24"
-              cy="24"
-              r="20"
+              cx="32"
+              cy="32"
+              r="28"
               stroke="hsl(var(--muted))"
-              strokeWidth="4"
+              strokeWidth="6"
               fill="none"
             />
             <circle
-              cx="24"
-              cy="24"
-              r="20"
+              cx="32"
+              cy="32"
+              r="28"
               stroke="hsl(var(--primary))"
-              strokeWidth="4"
+              strokeWidth="6"
               fill="none"
-              strokeDasharray={`${2 * Math.PI * 20}`}
-              strokeDashoffset={`${2 * Math.PI * 20 * (1 - progress / 100)}`}
+              strokeDasharray={`${2 * Math.PI * 28}`}
+              strokeDashoffset={`${2 * Math.PI * 28 * (1 - progress / 100)}`}
               className="transition-all duration-300"
+              strokeLinecap="round"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xs font-bold text-foreground">{formatTime(timeLeft)}</span>
+            <span className="text-sm font-black text-foreground">{formatTime(timeLeft)}</span>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+              {isRunning ? (isBreak ? 'Break' : 'Focus') : 'Paused'}
+            </span>
           </div>
         </div>
       </button>
@@ -166,17 +170,18 @@ export function FocusTimer({ compact = false, onTimerComplete }: FocusTimerProps
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
+      <DialogContent className="sm:max-w-md glass border-4 border-foreground">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Focus Timer</span>
+            <span className="text-3xl font-black tracking-tight">Focus Timer</span>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setShowSettings(!showSettings)}
+              className="border-2 border-transparent hover:border-foreground"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-5 h-5" />
             </Button>
           </DialogTitle>
         </DialogHeader>
@@ -186,38 +191,39 @@ export function FocusTimer({ compact = false, onTimerComplete }: FocusTimerProps
             <>
               {/* Timer Display */}
               <div className="flex flex-col items-center py-6">
-                <div className="relative w-48 h-48">
-                  <svg className="transform -rotate-90 w-48 h-48">
+                <div className="relative w-56 h-56">
+                  <svg className="transform -rotate-90 w-56 h-56">
                     <circle
-                      cx="96"
-                      cy="96"
-                      r="88"
+                      cx="112"
+                      cy="112"
+                      r="100"
                       stroke="hsl(var(--muted))"
-                      strokeWidth="8"
+                      strokeWidth="12"
                       fill="none"
                     />
                     <circle
-                      cx="96"
-                      cy="96"
-                      r="88"
+                      cx="112"
+                      cy="112"
+                      r="100"
                       stroke={isBreak ? "hsl(var(--secondary))" : "hsl(var(--primary))"}
-                      strokeWidth="8"
+                      strokeWidth="12"
                       fill="none"
-                      strokeDasharray={`${2 * Math.PI * 88}`}
-                      strokeDashoffset={`${2 * Math.PI * 88 * (1 - progress / 100)}`}
+                      strokeDasharray={`${2 * Math.PI * 100}`}
+                      strokeDashoffset={`${2 * Math.PI * 100 * (1 - progress / 100)}`}
                       className="transition-all duration-300"
+                      strokeLinecap="round"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-bold text-foreground">{formatTime(timeLeft)}</span>
-                    <span className="text-sm text-muted-foreground mt-1">
+                    <span className="text-5xl font-black text-foreground tracking-tighter">{formatTime(timeLeft)}</span>
+                    <span className="text-sm font-bold text-muted-foreground mt-2 uppercase tracking-wider">
                       {isBreak ? <Coffee className="w-4 h-4 inline" /> : <Clock className="w-4 h-4 inline" />}
                       {' '}{isBreak ? 'Break' : 'Focus'}
                     </span>
                   </div>
                 </div>
                 
-                <p className="text-sm text-center text-muted-foreground mt-4 max-w-xs">
+                <p className="text-sm font-semibold text-center text-muted-foreground mt-6 max-w-xs">
                   {getMessage()}
                 </p>
               </div>

@@ -316,11 +316,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card shadow-sm sticky top-0 z-30">
+      <header className="border-b-4 border-foreground bg-card shadow-brutal sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">MindChunk</h1>
-            <p className="text-sm text-muted-foreground">Welcome back, {user?.email?.split('@')[0]}! 👋</p>
+            <h1 className="text-4xl font-black tracking-tighter text-foreground">MindChunk</h1>
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Welcome back, {user?.email?.split('@')[0]}! 👋</p>
           </div>
           <Button onClick={handleLogout} variant="ghost">
             <LogOut className="w-4 h-4 mr-2" />
@@ -371,7 +371,7 @@ export default function Dashboard() {
         {/* Materials Section */}
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-foreground">Your Study Materials</h2>
+            <h2 className="text-4xl font-black tracking-tighter text-foreground">Your Study Materials</h2>
             <Button onClick={() => navigate("/study")}>
               <Upload className="w-4 h-4 mr-2" />
               Upload New Material
@@ -380,9 +380,11 @@ export default function Dashboard() {
 
           {materials.length === 0 ? (
             <div className="text-center py-16">
-              <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">No study materials yet</h3>
-              <p className="text-muted-foreground mb-6">
+              <div className="bg-primary/10 p-6 rounded-2xl border-4 border-foreground shadow-brutal-sm inline-block mb-6">
+                <Upload className="w-20 h-20 text-primary mx-auto" />
+              </div>
+              <h3 className="text-3xl font-black tracking-tight text-foreground mb-3">No study materials yet</h3>
+              <p className="text-base font-semibold text-muted-foreground mb-8 max-w-md mx-auto">
                 Upload your first material to get started with chunked learning!
               </p>
               <Button onClick={() => navigate("/study")} size="lg">
@@ -418,7 +420,7 @@ export default function Dashboard() {
 
         {/* Achievements Section */}
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-6">Your Achievements 🏆</h2>
+          <h2 className="text-4xl font-black tracking-tighter text-foreground mb-6">Your Achievements 🏆</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {achievements.map((achievement, index) => (
               <AchievementBadge
