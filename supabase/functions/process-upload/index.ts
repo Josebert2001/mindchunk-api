@@ -57,8 +57,11 @@ serve(async (req) => {
 
     console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
 
+    // Sanitize filename - remove special characters that aren't allowed in storage keys
+    const sanitizedFileName = file.name.replace(/[^\w\s.-]/g, '_');
+    
     // Upload to storage
-    const fileName = `${user.id}/${Date.now()}-${file.name}`;
+    const fileName = `${user.id}/${Date.now()}-${sanitizedFileName}`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('study-materials')
       .upload(fileName, file);
