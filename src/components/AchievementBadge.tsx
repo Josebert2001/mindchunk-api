@@ -22,22 +22,22 @@ export function AchievementBadge({
   unlockedDate,
 }: AchievementBadgeProps) {
   return (
-    <Card className={`p-4 transition-smooth ${
+    <Card className={`p-4 transition-brutal ${
       unlocked 
-        ? 'bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20' 
-        : 'bg-muted/50 opacity-60'
+        ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-4 border-primary shadow-brutal-sm' 
+        : 'bg-muted/50 opacity-60 border-2 border-border'
     }`}>
       <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-lg ${
-          unlocked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+        <div className={`p-3 rounded-xl border-4 ${
+          unlocked ? 'bg-primary border-foreground text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'
         }`}>
-          <Icon className="w-5 h-5" />
+          <Icon className="w-6 h-6" />
         </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold text-sm text-foreground">{title}</h4>
-            {unlocked && <Badge variant="secondary" className="text-xs">Unlocked</Badge>}
+            <h4 className="font-bold text-base tracking-tight text-foreground">{title}</h4>
+            {unlocked && <Badge variant="secondary" className="text-xs font-bold">Unlocked</Badge>}
           </div>
           
           <p className="text-xs text-muted-foreground mb-2">{description}</p>

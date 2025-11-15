@@ -65,28 +65,28 @@ export function MaterialCard({
 
   return (
     <>
-      <Card className="p-6 hover:shadow-soft transition-smooth">
+      <Card className="p-6 bg-gradient-to-br from-card to-muted/20 hover:translate-x-[-2px] hover:translate-y-[-2px] transition-brutal">
         <div className="flex items-start gap-4">
-          <div className="bg-primary/10 p-3 rounded-lg">
-            <FileText className="w-6 h-6 text-primary" />
+          <div className="bg-primary p-4 rounded-xl border-4 border-foreground shadow-brutal-sm">
+            <FileText className="w-7 h-7 text-primary-foreground" />
           </div>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="text-lg font-semibold text-foreground truncate">{title}</h3>
+              <h3 className="text-2xl font-black tracking-tight text-foreground truncate">{title}</h3>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 border-2 border-transparent hover:border-foreground">
                     <MoreVertical className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onContinue(id)}>
+                <DropdownMenuContent align="end" className="glass border-2 border-foreground">
+                  <DropdownMenuItem onClick={() => onContinue(id)} className="font-bold">
                     Continue Learning
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={() => setShowDeleteDialog(true)}
-                    className="text-destructive focus:text-destructive"
+                    className="text-destructive focus:text-destructive font-bold"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete
@@ -96,14 +96,14 @@ export function MaterialCard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Badge className={getStatusColor()}>
+              <Badge className={`${getStatusColor()} font-bold border-2 border-foreground`}>
                 {processingStatus === 'completed' ? 'Ready' : 'Processing'}
               </Badge>
-              <span className="text-sm text-muted-foreground">{fileName}</span>
-              <span className="text-sm text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">{wordCount.toLocaleString()} words</span>
-              <span className="text-sm text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm font-semibold text-muted-foreground">{fileName}</span>
+              <span className="text-sm font-bold text-muted-foreground">•</span>
+              <span className="text-sm font-semibold text-muted-foreground">{wordCount.toLocaleString()} words</span>
+              <span className="text-sm font-bold text-muted-foreground">•</span>
+              <span className="text-sm font-semibold text-muted-foreground">
                 {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
               </span>
             </div>
