@@ -14,7 +14,177 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      quiz_questions: {
+        Row: {
+          chunk_id: string
+          correct_answer: string
+          created_at: string | null
+          explanation: string | null
+          id: string
+          options: string[]
+          question: string
+        }
+        Insert: {
+          chunk_id: string
+          correct_answer: string
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          options: string[]
+          question: string
+        }
+        Update: {
+          chunk_id?: string
+          correct_answer?: string
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          options?: string[]
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_chunk_id_fkey"
+            columns: ["chunk_id"]
+            isOneToOne: false
+            referencedRelation: "study_chunks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_chunks: {
+        Row: {
+          chunk_number: number
+          content: string
+          created_at: string | null
+          difficulty: string | null
+          estimated_minutes: number | null
+          id: string
+          key_terms: string[] | null
+          main_concept: string | null
+          material_id: string
+          title: string
+        }
+        Insert: {
+          chunk_number: number
+          content: string
+          created_at?: string | null
+          difficulty?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          key_terms?: string[] | null
+          main_concept?: string | null
+          material_id: string
+          title: string
+        }
+        Update: {
+          chunk_number?: number
+          content?: string
+          created_at?: string | null
+          difficulty?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          key_terms?: string[] | null
+          main_concept?: string | null
+          material_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_chunks_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "study_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_materials: {
+        Row: {
+          created_at: string | null
+          estimated_read_time: number | null
+          file_name: string
+          file_path: string
+          file_size: number
+          full_text: string | null
+          id: string
+          processing_status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          estimated_read_time?: number | null
+          file_name: string
+          file_path: string
+          file_size: number
+          full_text?: string | null
+          id?: string
+          processing_status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          estimated_read_time?: number | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          full_text?: string | null
+          id?: string
+          processing_status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: []
+      }
+      study_progress: {
+        Row: {
+          chunk_id: string
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          quiz_score: number | null
+          time_spent_minutes: number | null
+          user_id: string
+        }
+        Insert: {
+          chunk_id: string
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          quiz_score?: number | null
+          time_spent_minutes?: number | null
+          user_id: string
+        }
+        Update: {
+          chunk_id?: string
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          quiz_score?: number | null
+          time_spent_minutes?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_progress_chunk_id_fkey"
+            columns: ["chunk_id"]
+            isOneToOne: false
+            referencedRelation: "study_chunks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
