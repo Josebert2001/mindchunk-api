@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Award } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Award, Circle, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -29,6 +29,7 @@ export const ChunkViewer = ({ materialId }: ChunkViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [showQuiz, setShowQuiz] = useState(false);
   const [completedChunks, setCompletedChunks] = useState<Set<string>>(new Set());
+  const [showCelebration, setShowCelebration] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,6 +91,10 @@ export const ChunkViewer = ({ materialId }: ChunkViewerProps) => {
       if (error) throw error;
 
       setCompletedChunks(prev => new Set([...prev, currentChunk.id]));
+      
+      // Show celebration animation
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
 
       toast({
         title: "🎉 Chunk completed!",
@@ -136,9 +141,29 @@ export const ChunkViewer = ({ materialId }: ChunkViewerProps) => {
 
   const currentChunk = chunks[currentIndex];
   const progress = ((completedChunks.size) / chunks.length) * 100;
+  const progressColor = progress < 30 ? 'bg-destructive' : progress < 70 ? 'bg-primary' : 'bg-secondary';
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 relative">
+      {/* Celebration Animation */}
+      {showCelebration && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+          <div className="animate-scale-in">
+            <div className="text-8xl">🎉</div>
+          </div>
+          <style>{`
+            @keyframes scale-in {
+              0% { transform: scale(0) rotate(0deg); opacity: 0; }
+              50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+              100% { transform: scale(1) rotate(360deg); opacity: 0; }
+            }
+            .animate-scale-in {
+              animation: scale-in 2s ease-out;
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* Progress Bar */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-2">
@@ -147,10 +172,37 @@ export const ChunkViewer = ({ materialId }: ChunkViewerProps) => {
             <span className="font-semibold">Your Progress</span>
           </div>
           <span className="text-sm text-muted-foreground">
-            {completedChunks.size} of {chunks.length} completed
+            {completedChunks.size} of {chunks.length} completed ({Math.round(progress)}%)
           </span>
         </div>
-        <Progress value={progress} className="h-3" />
+        <Progress value={progress} className={`h-3 ${progressColor}`} />
+        
+        {/* Chunk Navigation Indicators */}
+        <div className="flex gap-2 mt-4 flex-wrap">
+          {chunks.map((chunk, index) => (
+            <button
+              key={chunk.id}
+              onClick={() => {
+                setCurrentIndex(index);
+                setShowQuiz(false);
+              }}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg transition-smooth ${
+                index === currentIndex
+                  ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2'
+                  : completedChunks.has(chunk.id)
+                  ? 'bg-secondary/20 text-secondary hover:bg-secondary/30'
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
+              title={`Chunk ${chunk.chunk_number}: ${chunk.title}`}
+            >
+              {completedChunks.has(chunk.id) ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <span className="text-sm font-semibold">{chunk.chunk_number}</span>
+              )}
+            </button>
+          ))}
+        </div>
       </Card>
 
       {/* Chunk Content */}

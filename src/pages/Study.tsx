@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft, LogOut, LayoutDashboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FileUpload } from "@/components/FileUpload";
 import { ChunkViewer } from "@/components/ChunkViewer";
+import { FocusTimer } from "@/components/FocusTimer";
 
 export default function Study() {
   const [searchParams] = useSearchParams();
@@ -37,10 +38,15 @@ export default function Study() {
         body: { materialId, chunkSize: 5 },
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('429')) {
+          throw new Error('AI service is busy. Please wait a moment and try again.');
+        }
+        throw error;
+      }
 
       if (!data.success) {
-        throw new Error(data.error || 'Processing failed');
+        throw new Error(data.error || 'Processing failed. Try with simpler content or a smaller file.');
       }
 
       toast({
@@ -52,9 +58,13 @@ export default function Study() {
 
     } catch (error) {
       console.error('Processing error:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Failed to process content. Check your internet connection and try again.";
+      
       toast({
         title: "Processing failed",
-        description: error instanceof Error ? error.message : "Please try again",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -72,24 +82,33 @@ export default function Study() {
       <header className="border-b border-border bg-card shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard")}
             variant="ghost"
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Home
+            Dashboard
           </Button>
           
           <h1 className="text-xl font-bold">MindChunk</h1>
           
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => navigate("/dashboard")}
+              variant="ghost"
+              size="icon"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -112,6 +131,7 @@ export default function Study() {
                 Take your time with each chunk. Learning happens one step at a time!
               </p>
             </div>
+            <FocusTimer compact={true} />
             <ChunkViewer materialId={currentMaterialId} />
           </div>
         ) : (

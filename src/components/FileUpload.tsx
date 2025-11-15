@@ -88,10 +88,12 @@ export const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
 
       setProgress(100);
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Upload failed. Check your connection and try again.');
+      }
 
       if (!data.success) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || 'Failed to process file. Try a different format.');
       }
 
       toast({
@@ -103,9 +105,13 @@ export const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
 
     } catch (error) {
       console.error('Upload error:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Upload failed. Check file size (<10MB) and format (PDF, TXT, images).';
+      
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -174,7 +174,7 @@ Return ONLY valid JSON (no markdown fences):
   }
 ]`;
 
-  try {
+  return retryWithBackoff(async () => {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -191,6 +191,10 @@ Return ONLY valid JSON (no markdown fences):
     if (!response.ok) {
       const error = await response.text();
       console.error('AI error:', response.status, error);
+      
+      if (response.status === 429) {
+        throw new Error('RATE_LIMIT');
+      }
       throw new Error(`AI request failed: ${response.status}`);
     }
 
@@ -198,10 +202,7 @@ Return ONLY valid JSON (no markdown fences):
     const text = data.choices?.[0]?.message?.content || '[]';
     const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
     return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Chunk generation error:', error);
-    throw error;
-  }
+  }, 3);
 }
 
 async function generateQuiz(chunkContent: string, chunkTitle: string) {
@@ -226,7 +227,7 @@ Return ONLY valid JSON:
   }
 ]`;
 
-  try {
+  return retryWithBackoff(async () => {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -243,6 +244,10 @@ Return ONLY valid JSON:
     if (!response.ok) {
       const error = await response.text();
       console.error('AI error:', response.status, error);
+      
+      if (response.status === 429) {
+        throw new Error('RATE_LIMIT');
+      }
       throw new Error(`AI request failed: ${response.status}`);
     }
 
@@ -250,8 +255,30 @@ Return ONLY valid JSON:
     const text = data.choices?.[0]?.message?.content || '[]';
     const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
     return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Quiz generation error:', error);
-    return [];
+  }, 3).catch(() => []);
+}
+
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxAttempts: number = 3
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        console.error(`Max retries (${maxAttempts}) exceeded`);
+        throw error;
+      }
+      
+      const isRateLimit = error instanceof Error && error.message === 'RATE_LIMIT';
+      const delay = isRateLimit 
+        ? Math.pow(2, attempt) * 1000  // Exponential: 2s, 4s, 8s
+        : 1000;  // Fixed 1s for other errors
+      
+      console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+  throw new Error('Retry logic failed');
 }
