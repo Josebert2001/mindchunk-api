@@ -1,9 +1,10 @@
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Trash2, MoreVertical } from "lucide-react";
+import { FileText, Clock, PlayCircle, BookOpen, MoreVertical, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,140 +21,195 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-interface MaterialCardProps {
+interface StudyMaterial {
   id: string;
   title: string;
-  fileName: string;
-  wordCount: number;
-  createdAt: string;
-  processingStatus: string;
-  progress?: number;
-  totalChunks?: number;
-  completedChunks?: number;
-  onContinue: (id: string) => void;
-  onDelete: (id: string) => void;
+  file_name: string;
+  file_path: string;
+  word_count: number | null;
+  estimated_read_time: number | null;
+  created_at: string;
+  processing_status: string | null;
 }
 
-export function MaterialCard({
-  id,
-  title,
-  fileName,
-  wordCount,
-  createdAt,
-  processingStatus,
-  progress = 0,
-  totalChunks = 0,
-  completedChunks = 0,
-  onContinue,
-  onDelete,
-}: MaterialCardProps) {
+interface MaterialCardProps {
+  material: StudyMaterial;
+  onDelete?: () => void;
+}
+
+export function MaterialCard({ material, onDelete }: MaterialCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [chunks, setChunks] = useState<any[]>([]);
+  const [progress, setProgress] = useState<any[]>([]);
+  const { toast } = useToast();
 
-  const getStatusColor = () => {
-    if (processingStatus === 'completed') return 'bg-secondary';
-    if (processingStatus === 'processing') return 'bg-primary';
-    return 'bg-muted';
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: chunksData } = await supabase
+        .from("study_chunks")
+        .select("id")
+        .eq("material_id", material.id);
+
+      setChunks(chunksData || []);
+
+      if (chunksData && chunksData.length > 0) {
+        const { data: progressData } = await supabase
+          .from("study_progress")
+          .select("*")
+          .eq("completed", true)
+          .in(
+            "chunk_id",
+            chunksData.map((c) => c.id)
+          );
+
+        setProgress(progressData || []);
+      }
+    };
+
+    fetchData();
+  }, [material.id]);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      // Delete the file from storage
+      const { error: storageError } = await supabase.storage
+        .from("study-materials")
+        .remove([material.file_path]);
+
+      if (storageError) throw storageError;
+
+      // Delete the record from database (cascades to chunks and progress)
+      const { error: dbError } = await supabase
+        .from("study_materials")
+        .delete()
+        .eq("id", material.id);
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Material deleted",
+        description: `"${material.title}" has been removed`,
+      });
+
+      onDelete?.();
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
   };
 
-  const getProgressColor = () => {
-    if (progress < 30) return 'bg-destructive';
-    if (progress < 70) return 'bg-primary';
-    return 'bg-secondary';
-  };
+  const completedChunks = progress.length;
+  const totalChunks = chunks.length;
+  const progressPercentage = totalChunks > 0 ? (completedChunks / totalChunks) * 100 : 0;
 
   return (
     <>
-      <Card className="p-6 bg-gradient-to-br from-card to-muted/20 hover:translate-x-[-2px] hover:translate-y-[-2px] transition-brutal">
-        <div className="flex items-start gap-4">
-          <div className="bg-primary p-4 rounded-xl border-4 border-foreground shadow-brutal-sm">
-            <FileText className="w-7 h-7 text-primary-foreground" />
+      <Card className="overflow-hidden hover:shadow-lg transition-smooth group">
+        <CardHeader className="pb-4 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0 space-y-1">
+              <CardTitle className="text-xl font-bold truncate">{material.title}</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {material.file_name} • {formatDistanceToNow(new Date(material.created_at), { addSuffix: true })}
+              </p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-smooth">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="glass z-50">
+                <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Material
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="text-2xl font-black tracking-tight text-foreground truncate">{title}</h3>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 border-2 border-transparent hover:border-foreground">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="glass border-2 border-foreground">
-                  <DropdownMenuItem onClick={() => onContinue(id)} className="font-bold">
-                    Continue Learning
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-destructive focus:text-destructive font-bold"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+        </CardHeader>
 
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Badge className={`${getStatusColor()} font-bold border-2 border-foreground`}>
-                {processingStatus === 'completed' ? 'Ready' : 'Processing'}
-              </Badge>
-              <span className="text-sm font-semibold text-muted-foreground">{fileName}</span>
-              <span className="text-sm font-bold text-muted-foreground">•</span>
-              <span className="text-sm font-semibold text-muted-foreground">{wordCount.toLocaleString()} words</span>
-              <span className="text-sm font-bold text-muted-foreground">•</span>
-              <span className="text-sm font-semibold text-muted-foreground">
-                {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
-              </span>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium text-foreground">{material.word_count?.toLocaleString() || 0} words</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium text-foreground">{material.estimated_read_time || 0} min read</span>
+            </div>
+          </div>
 
-            {totalChunks > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {completedChunks} of {totalChunks} chunks complete
-                  </span>
-                  <span className="text-foreground font-medium">{progress}%</span>
-                </div>
-                <Progress value={progress} className={getProgressColor()} />
+          {chunks && chunks.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-muted-foreground">Progress</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {completedChunks} / {chunks.length} chunks ({Math.round(progressPercentage)}%)
+                </span>
               </div>
-            )}
-
-            <div className="mt-4">
-              <Button 
-                onClick={() => onContinue(id)} 
-                className="w-full sm:w-auto"
-                disabled={processingStatus !== 'completed'}
-              >
-                {processingStatus === 'completed' 
-                  ? (completedChunks > 0 ? 'Continue Learning' : 'Start Learning')
-                  : 'Processing...'}
-              </Button>
+              <Progress value={progressPercentage} className="h-2" />
             </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
+            <Badge
+              variant={material.processing_status === "completed" ? "default" : "secondary"}
+              className="font-medium capitalize"
+            >
+              {material.processing_status || "pending"}
+            </Badge>
+
+            {material.processing_status === "completed" && chunks && chunks.length > 0 ? (
+              <Button asChild size="sm">
+                <Link to={`/study?material=${material.id}`}>
+                  {completedChunks > 0 ? (
+                    <>
+                      <PlayCircle className="mr-2 h-4 w-4" />
+                      Continue
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Start
+                    </>
+                  )}
+                </Link>
+              </Button>
+            ) : (
+              <Button disabled size="sm" variant="secondary">
+                Processing...
+              </Button>
+            )}
           </div>
-        </div>
+        </CardContent>
       </Card>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{title}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Material?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this material and all associated chunks and progress. 
-              This action cannot be undone.
+              This will permanently delete "{material.title}" and all associated chunks and progress. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                onDelete(id);
-                setShowDeleteDialog(false);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground">
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

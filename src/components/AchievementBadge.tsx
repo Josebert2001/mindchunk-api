@@ -1,60 +1,46 @@
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface AchievementBadgeProps {
-  title: string;
+interface Achievement {
+  id: string;
+  name: string;
   description: string;
-  icon: LucideIcon;
+  icon: string;
   unlocked: boolean;
-  progress?: number;
-  total?: number;
-  unlockedDate?: string;
 }
 
-export function AchievementBadge({
-  title,
-  description,
-  icon: Icon,
-  unlocked,
-  progress,
-  total,
-  unlockedDate,
-}: AchievementBadgeProps) {
+interface AchievementBadgeProps {
+  achievement: Achievement;
+  unlocked: boolean;
+}
+
+export function AchievementBadge({ achievement, unlocked }: AchievementBadgeProps) {
   return (
-    <Card className={`p-4 transition-brutal ${
-      unlocked 
-        ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-4 border-primary shadow-brutal-sm' 
-        : 'bg-muted/50 opacity-60 border-2 border-border'
-    }`}>
-      <div className="flex items-start gap-3">
-        <div className={`p-3 rounded-xl border-4 ${
-          unlocked ? 'bg-primary border-foreground text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'
-        }`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-bold text-base tracking-tight text-foreground">{title}</h4>
-            {unlocked && <Badge variant="secondary" className="text-xs font-bold">Unlocked</Badge>}
-          </div>
-          
-          <p className="text-xs text-muted-foreground mb-2">{description}</p>
-          
-          {!unlocked && progress !== undefined && total !== undefined && (
-            <p className="text-xs text-muted-foreground">
-              Progress: {progress}/{total}
-            </p>
+    <div
+      className={cn(
+        "p-4 rounded-lg border transition-smooth",
+        unlocked
+          ? "border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-sm hover:shadow-md"
+          : "border-border bg-muted/30 opacity-50"
+      )}
+    >
+      <div className="flex flex-col items-center text-center space-y-3">
+        <div
+          className={cn(
+            "text-3xl p-3 rounded-lg",
+            unlocked ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
           )}
-          
-          {unlocked && unlockedDate && (
-            <p className="text-xs text-primary">
-              Earned {new Date(unlockedDate).toLocaleDateString()}
-            </p>
-          )}
+        >
+          {achievement.icon}
         </div>
+        <div className="space-y-1">
+          <p className={cn("font-semibold text-sm", unlocked ? "text-foreground" : "text-muted-foreground")}>
+            {achievement.name}
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{achievement.description}</p>
+        </div>
+        {!unlocked && <Badge variant="secondary" className="text-xs">Locked</Badge>}
       </div>
-    </Card>
+    </div>
   );
 }

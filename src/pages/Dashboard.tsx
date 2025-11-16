@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
 import { StatsCard } from "@/components/StatsCard";
 import { MaterialCard } from "@/components/MaterialCard";
 import { StreakCounter } from "@/components/StreakCounter";
@@ -18,16 +19,19 @@ import {
   PlayCircle,
   Trophy,
   Zap,
-  Award
+  Award,
+  BookOpen
 } from "lucide-react";
 
 interface Material {
   id: string;
   title: string;
   file_name: string;
-  word_count: number;
+  file_path: string;
+  word_count: number | null;
+  estimated_read_time: number | null;
   created_at: string;
-  processing_status: string;
+  processing_status: string | null;
   totalChunks?: number;
   completedChunks?: number;
 }
@@ -71,7 +75,9 @@ export default function Dashboard() {
           id,
           title,
           file_name,
+          file_path,
           word_count,
+          estimated_read_time,
           created_at,
           processing_status
         `)
@@ -316,126 +322,140 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b-4 border-foreground bg-card shadow-brutal sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-black tracking-tighter text-foreground">MindChunk</h1>
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Welcome back, {user?.email?.split('@')[0]}! 👋</p>
+      {/* Header */}
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-30 shadow-sm">
+        <div className="container mx-auto px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold tracking-tight">MindChunk</h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome back, <span className="font-semibold text-foreground">{user?.email}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" asChild size="sm">
+                <Link to="/study">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Study
+                </Link>
+              </Button>
+              <Button variant="ghost" onClick={handleLogout} size="sm">
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </div>
           </div>
-          <Button onClick={handleLogout} variant="ghost">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-10 space-y-12">
         {/* Streak Counter */}
-        {stats.currentStreak > 0 && (
-          <StreakCounter
-            currentStreak={stats.currentStreak}
-            longestStreak={stats.longestStreak}
-            recentDays={getRecentDays()}
-          />
-        )}
+        <StreakCounter 
+          currentStreak={stats.currentStreak} 
+          longestStreak={stats.longestStreak}
+          recentDays={getRecentDays()}
+        />
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Materials"
-            value={stats.totalMaterials}
-            icon={Upload}
-            subtitle="Study materials uploaded"
-          />
-          <StatsCard
-            title="Sessions"
-            value="3"
-            icon={Target}
-            subtitle="Focus sessions today"
-            trend="+1 from yesterday"
-          />
-          <StatsCard
-            title="Chunks Mastered"
-            value={stats.completedChunks}
-            icon={CheckCircle}
-            subtitle={`of ${stats.totalChunks} total chunks`}
-          />
-          <StatsCard
-            title="Focus Time"
-            value="1h 25m"
-            icon={Clock}
-            subtitle="Total time today"
-          />
-        </div>
+        {/* Stats Grid */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold tracking-tight">Your Progress</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard
+              title="Materials"
+              value={stats.totalMaterials}
+              icon={BookOpen}
+              subtitle="Total uploaded"
+            />
+            <StatsCard
+              title="Chunks Complete"
+              value={stats.completedChunks}
+              icon={Target}
+              subtitle={`${stats.totalChunks} total chunks`}
+            />
+            <StatsCard
+              title="Focus Time"
+              value="0m"
+              icon={Clock}
+              subtitle="Total study time"
+            />
+            <StatsCard
+              title="Current Streak"
+              value={`${stats.currentStreak}d`}
+              icon={Flame}
+              subtitle={stats.currentStreak > 0 ? "Keep it up! 🔥" : "Start today!"}
+              trend={stats.currentStreak >= 3 ? "📈 On fire!" : undefined}
+            />
+          </div>
+        </section>
 
-        {/* Materials Section */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-4xl font-black tracking-tighter text-foreground">Your Study Materials</h2>
-            <Button onClick={() => navigate("/study")}>
-              <Upload className="w-4 h-4 mr-2" />
-              Upload New Material
+        {/* Materials List */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold tracking-tight">Study Materials</h2>
+            <Button asChild size="sm">
+              <Link to="/study">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Material
+              </Link>
             </Button>
           </div>
 
           {materials.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="bg-primary/10 p-6 rounded-2xl border-4 border-foreground shadow-brutal-sm inline-block mb-6">
-                <Upload className="w-20 h-20 text-primary mx-auto" />
+            <Card className="p-12 text-center border-2 border-dashed">
+              <div className="flex flex-col items-center gap-6 max-w-md mx-auto">
+                <div className="p-6 bg-primary/5 rounded-2xl">
+                  <Upload className="h-12 w-12 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xl font-semibold">No materials yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Upload your first study material to break it down into bite-sized chunks
+                  </p>
+                </div>
+                <Button asChild>
+                  <Link to="/study">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Material
+                  </Link>
+                </Button>
               </div>
-              <h3 className="text-3xl font-black tracking-tight text-foreground mb-3">No study materials yet</h3>
-              <p className="text-base font-semibold text-muted-foreground mb-8 max-w-md mx-auto">
-                Upload your first material to get started with chunked learning!
-              </p>
-              <Button onClick={() => navigate("/study")} size="lg">
-                <Upload className="w-5 h-5 mr-2" />
-                Upload Material
-              </Button>
-            </div>
+            </Card>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {materials.map((material) => (
-                <MaterialCard
-                  key={material.id}
-                  id={material.id}
-                  title={material.title}
-                  fileName={material.file_name}
-                  wordCount={material.word_count}
-                  createdAt={material.created_at}
-                  processingStatus={material.processing_status}
-                  totalChunks={material.totalChunks}
-                  completedChunks={material.completedChunks}
-                  progress={
-                    material.totalChunks 
-                      ? Math.round((material.completedChunks! / material.totalChunks) * 100)
-                      : 0
-                  }
-                  onContinue={handleContinueLearning}
-                  onDelete={handleDeleteMaterial}
+                <MaterialCard 
+                  key={material.id} 
+                  material={material} 
+                  onDelete={loadDashboardData}
                 />
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Achievements Section */}
-        <div>
-          <h2 className="text-4xl font-black tracking-tighter text-foreground mb-6">Your Achievements 🏆</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {achievements.map((achievement, index) => (
-              <AchievementBadge
-                key={index}
-                title={achievement.title}
-                description={achievement.description}
-                icon={achievement.icon}
-                unlocked={achievement.unlocked}
-                progress={achievement.progress}
-                total={achievement.total}
-                unlockedDate={achievement.unlocked ? new Date().toISOString() : undefined}
+        {/* Achievements */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold tracking-tight">Achievements</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {achievements.map((achievement) => (
+              <AchievementBadge 
+                key={achievement.title} 
+                achievement={{
+                  id: achievement.title.toLowerCase().replace(/\s+/g, '-'),
+                  name: achievement.title,
+                  description: achievement.description,
+                  icon: achievement.title.includes("First") ? "🎯" : 
+                        achievement.title.includes("Getting") ? "⚡" :
+                        achievement.title.includes("Dedicated") ? "🏆" :
+                        achievement.title.includes("3-Day") ? "🔥" : "🎖️",
+                  unlocked: achievement.unlocked,
+                }}
+                unlocked={achievement.unlocked} 
               />
             ))}
           </div>
-        </div>
+        </section>
       </main>
     </div>
   );
