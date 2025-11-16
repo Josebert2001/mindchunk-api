@@ -1,4 +1,8 @@
+// @ts-ignore - Deno globals
+// @deno-types="https://deno.land/std@0.168.0/http/server.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore - Supabase module
+// @deno-types="https://esm.sh/@supabase/supabase-js@2.39.3"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
@@ -6,15 +10,125 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+// Kimi API configuration
+// @ts-ignore - Deno environment
+const KIMI_API_URL = 'https://api.moonshot.cn/v1';
+// @ts-ignore - Deno environment
+const KIMI_API_KEY = typeof Deno !== 'undefined' ? (Deno as any).env.get('KIMI_API_KEY') : process.env.KIMI_API_KEY;
+
+/**
+ * Upload file to Kimi for text extraction
+ * Supports: PDF, images (with OCR), documents
+ */
+async function uploadFileToKimi(file: File): Promise<string> {
+  if (!KIMI_API_KEY) {
+    throw new Error('KIMI_API_KEY environment variable is not set');
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const blob = new Blob([uint8Array], { type: file.type });
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', blob, file.name);
+    formData.append('purpose', 'file-extract');
+
+    // Upload file to Kimi
+    console.log(`Uploading file to Kimi: ${file.name}`);
+    const uploadResponse = await fetch(`${KIMI_API_URL}/files`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${KIMI_API_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('Kimi upload error:', uploadResponse.status, errorText);
+      throw new Error(`Kimi file upload failed: ${uploadResponse.status}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    const fileId = uploadData.id;
+
+    console.log(`File uploaded to Kimi. File ID: ${fileId}`);
+
+    // Extract content from uploaded file
+    console.log(`Extracting content from Kimi file: ${fileId}`);
+    const contentResponse = await fetch(`${KIMI_API_URL}/files/${fileId}/content`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${KIMI_API_KEY}`,
+      },
+    });
+
+    if (!contentResponse.ok) {
+      console.error('Kimi content extraction error:', contentResponse.status);
+      throw new Error(`Kimi content extraction failed: ${contentResponse.status}`);
+    }
+
+    const extractedText = await contentResponse.text();
+    console.log(`Content extracted successfully. Length: ${extractedText.length}`);
+
+    // Clean up: delete file from Kimi after extraction
+    await deleteFileFromKimi(fileId);
+
+    return extractedText;
+  } catch (error) {
+    console.error('Kimi file processing error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete file from Kimi to free up storage
+ */
+async function deleteFileFromKimi(fileId: string): Promise<void> {
+  if (!KIMI_API_KEY) {
+    console.warn('KIMI_API_KEY not set, skipping file cleanup');
+    return;
+  }
+
+  try {
+    console.log(`Deleting file from Kimi: ${fileId}`);
+    const deleteResponse = await fetch(`${KIMI_API_URL}/files/${fileId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${KIMI_API_KEY}`,
+      },
+    });
+
+    if (!deleteResponse.ok) {
+      console.warn(`Failed to delete Kimi file: ${deleteResponse.status}`);
+      return;
+    }
+
+    console.log(`File deleted from Kimi: ${fileId}`);
+  } catch (error) {
+    console.error('Error deleting file from Kimi:', error);
+    // Don't throw - cleanup failure shouldn't block the entire operation
+  }
+}
+
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const supabaseUrl = typeof (global as any).Deno !== 'undefined' 
+      ? ((global as any).Deno as any).env.get('SUPABASE_URL')
+      : process.env.VITE_SUPABASE_URL;
+    const supabaseKey = typeof (global as any).Deno !== 'undefined'
+      ? ((global as any).Deno as any).env.get('SUPABASE_SERVICE_ROLE_KEY')
+      : process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl ?? '',
+      supabaseKey ?? ''
     );
 
     const authHeader = req.headers.get('Authorization')!;
@@ -76,28 +190,38 @@ serve(async (req) => {
 
     console.log('File uploaded:', uploadData.path);
 
-    // Extract text based on file type
+    // Extract text using Kimi AI
     let extractedText = '';
     
-    if (file.type === 'text/plain') {
-      extractedText = await file.text();
-    } else if (file.type === 'application/pdf') {
-      // For PDF, we'll return a simplified extraction
-      // In production, you'd use a PDF parsing library
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const text = new TextDecoder().decode(uint8Array);
-      
-      // Basic text extraction (this is simplified)
-      extractedText = text.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ').trim();
-      
-      if (extractedText.length < 100) {
-        extractedText = `[PDF Content: ${file.name}]\n\nThis PDF has been uploaded successfully. For better text extraction, consider uploading a text file or image with clear text.`;
+    try {
+      // Use Kimi for all supported file types (PDF, images, documents)
+      if (['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
+        console.log('Using Kimi for text extraction');
+        extractedText = await uploadFileToKimi(file);
+      } else if (file.type === 'text/plain') {
+        // For plain text, extract directly
+        extractedText = await file.text();
+      } else {
+        // Try Kimi for unknown types if possible
+        try {
+          extractedText = await uploadFileToKimi(file);
+        } catch (kimiError) {
+          console.warn('Kimi extraction failed for unknown type, returning error');
+          throw kimiError;
+        }
       }
-    } else if (file.type.startsWith('image/')) {
-      // For images, we'll return a placeholder
-      // In production, you'd use OCR (e.g., Tesseract)
-      extractedText = `[Image Content: ${file.name}]\n\nThis image has been uploaded successfully. Text extraction from images requires OCR processing.`;
+    } catch (extractionError) {
+      console.error('Text extraction error:', extractionError);
+      const errorMessage = extractionError instanceof Error ? extractionError.message : 'Unknown error';
+      
+      // Return error response
+      return new Response(JSON.stringify({ 
+        error: 'Failed to extract text from file',
+        details: `The file could not be processed. ${errorMessage}` 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Clean and validate text
