@@ -122,11 +122,20 @@ export const ChunkViewer = ({ materialId }: ChunkViewerProps) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your chunks...</p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your chunks...</p>
+          </div>
         </div>
+        {/* Show progress skeletons while loading */}
+        <Card className="p-4">
+          <div className="space-y-2">
+            <div className="h-3 bg-muted rounded-lg animate-pulse w-3/4"></div>
+            <div className="h-2 bg-muted rounded-lg animate-pulse"></div>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -134,7 +143,13 @@ export const ChunkViewer = ({ materialId }: ChunkViewerProps) => {
   if (chunks.length === 0) {
     return (
       <Card className="p-12 text-center">
-        <p className="text-lg text-muted-foreground">No chunks available yet</p>
+        <p className="text-lg text-muted-foreground mb-4">No chunks available yet</p>
+        <p className="text-sm text-muted-foreground mb-6">
+          Chunks for this material haven't been generated yet. Try uploading it again or check back later.
+        </p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Refresh Page
+        </Button>
       </Card>
     );
   }

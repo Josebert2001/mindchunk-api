@@ -37,7 +37,13 @@ serve(async (req) => {
       });
     }
 
-    console.log('Processing material:', materialId, 'Chunk size:', chunkSize);
+    // Validate chunkSize - must be between 1 and 10
+    const validatedChunkSize = Math.max(1, Math.min(10, Math.floor(chunkSize)));
+    if (validatedChunkSize !== chunkSize) {
+      console.warn('Invalid chunkSize, clamped to range [1-10]');
+    }
+
+    console.log('Processing material:', materialId, 'Chunk size:', validatedChunkSize);
 
     // Fetch material
     const { data: material, error: fetchError } = await supabase
@@ -65,7 +71,7 @@ serve(async (req) => {
 
     // Generate chunks using AI
     console.log('Generating chunks with AI...');
-    const chunks = await generateChunks(content, chunkSize);
+    const chunks = await generateChunks(content, validatedChunkSize);
     console.log('Generated', chunks.length, 'chunks');
 
     // Save chunks to database
@@ -94,23 +100,32 @@ serve(async (req) => {
       }
 
       console.log('Generating quiz for chunk', i + 1);
-      const quiz = await generateQuiz(chunk.content, chunk.title);
-      
-      // Save quiz questions
-      for (const question of quiz) {
-        const { error: quizError } = await supabase
-          .from('quiz_questions')
-          .insert({
-            chunk_id: chunkData.id,
-            question: question.question,
-            options: question.options,
-            correct_answer: question.correctAnswer,
-            explanation: question.explanation
-          });
+      try {
+        const quiz = await generateQuiz(chunk.content, chunk.title);
+        
+        // Save quiz questions only if quiz was generated
+        if (quiz && quiz.length > 0) {
+          for (const question of quiz) {
+            const { error: quizError } = await supabase
+              .from('quiz_questions')
+              .insert({
+                chunk_id: chunkData.id,
+                question: question.question,
+                options: question.options,
+                correct_answer: question.correctAnswer,
+                explanation: question.explanation
+              });
 
-        if (quizError) {
-          console.error('Quiz save error:', quizError);
+            if (quizError) {
+              console.error('Quiz save error:', quizError);
+            }
+          }
+        } else {
+          console.warn('No quiz generated for chunk', i + 1);
         }
+      } catch (quizGenError) {
+        console.error('Failed to generate quiz for chunk', i + 1, ':', quizGenError);
+        // Continue without quiz rather than failing entire batch
       }
 
       savedChunks.push({
@@ -175,33 +190,41 @@ Return ONLY valid JSON (no markdown fences):
 ]`;
 
   return retryWithBackoff(async () => {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    try {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('AI error:', response.status, error);
-      
-      if (response.status === 429) {
-        throw new Error('RATE_LIMIT');
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('AI error:', response.status, error);
+        
+        if (response.status === 429) {
+          throw new Error('RATE_LIMIT');
+        }
+        throw new Error(`AI request failed: ${response.status}`);
       }
-      throw new Error(`AI request failed: ${response.status}`);
-    }
 
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '[]';
-    const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || '[]';
+      const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+      return JSON.parse(cleaned);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }, 3);
 }
 
@@ -228,34 +251,42 @@ Return ONLY valid JSON:
 ]`;
 
   return retryWithBackoff(async () => {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout for quiz
+    
+    try {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('AI error:', response.status, error);
-      
-      if (response.status === 429) {
-        throw new Error('RATE_LIMIT');
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('AI error:', response.status, error);
+        
+        if (response.status === 429) {
+          throw new Error('RATE_LIMIT');
+        }
+        throw new Error(`AI request failed: ${response.status}`);
       }
-      throw new Error(`AI request failed: ${response.status}`);
-    }
 
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '[]';
-    const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  }, 3).catch(() => []);
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || '[]';
+      const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+      return JSON.parse(cleaned);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }, 3);
 }
 
 async function retryWithBackoff<T>(

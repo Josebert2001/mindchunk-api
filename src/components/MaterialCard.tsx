@@ -44,8 +44,8 @@ interface MaterialCardProps {
 export function MaterialCard({ material, onDelete }: MaterialCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [chunks, setChunks] = useState<any[]>([]);
-  const [progress, setProgress] = useState<any[]>([]);
+  const [chunks, setChunks] = useState<Array<{id: string}>>([]);
+  const [progress, setProgress] = useState<Array<{chunk_id: string; completed: boolean}>>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -98,10 +98,11 @@ export function MaterialCard({ material, onDelete }: MaterialCardProps) {
       });
 
       onDelete?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete';
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {

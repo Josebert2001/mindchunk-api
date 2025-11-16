@@ -66,14 +66,34 @@ export const QuizCard = ({ chunkId, onComplete, onSkip }: QuizCardProps) => {
     setShowResult(true);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
       setShowResult(false);
     } else {
-      // Quiz complete
+      // Quiz complete - save score and mark chunk as done
       const finalScore = Math.round((score / questions.length) * 100);
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        // Update progress with quiz score
+        const { error } = await supabase
+          .from('study_progress')
+          .upsert({
+            user_id: user.id,
+            chunk_id: chunkId,
+            completed: true,
+            quiz_score: finalScore,
+            completed_at: new Date().toISOString(),
+          });
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error saving quiz score:', error);
+      }
       
       toast({
         title: `Quiz Complete! 🎉`,
