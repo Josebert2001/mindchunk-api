@@ -7,14 +7,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
 // Kimi API configuration
 // @ts-ignore - Deno environment
 const KIMI_API_URL = 'https://api.moonshot.cn/v1';
 // @ts-ignore - Deno environment
-const KIMI_API_KEY = typeof Deno !== 'undefined' ? (Deno as any).env.get('KIMI_API_KEY') : process.env.KIMI_API_KEY;
+const KIMI_API_KEY = Deno.env.get('KIMI_API_KEY');
 
 /**
  * Upload file to Kimi for text extraction
@@ -119,12 +120,8 @@ serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = typeof (global as any).Deno !== 'undefined' 
-      ? ((global as any).Deno as any).env.get('SUPABASE_URL')
-      : process.env.VITE_SUPABASE_URL;
-    const supabaseKey = typeof (global as any).Deno !== 'undefined'
-      ? ((global as any).Deno as any).env.get('SUPABASE_SERVICE_ROLE_KEY')
-      : process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     const supabase = createClient(
       supabaseUrl ?? '',
